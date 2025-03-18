@@ -1,4 +1,5 @@
 import numpy as np
+from functools import cached_property
 from typing import Optional
 from classes.nodes import Node
 from classes.beam import Beam
@@ -53,6 +54,7 @@ class FEM:
         Returns:
             Created Beam object
         """
+
         new_beam = Beam(area=area, inertia=inertia, elastic_modulus=elastic_modulus, node_1=node_1, node_2=node_2)
         self.beams.append(new_beam)
         return new_beam
@@ -70,6 +72,7 @@ class FEM:
         Returns:
             Created CBush object
         """
+        
         new_cbush = CBush(axial_stiffness=axial_stiffness, rotational_stiffness=rotational_stiffness, node_1=node_1, node_2=node_2)
         self.cbush.append(new_cbush)
         return new_cbush
@@ -86,9 +89,16 @@ class FEM:
         Returns:
             Created MPC object
         """
+        
         new_mpc = MPC(master_node=master_node, slave_node=slave_node, dofs=dofs)
         self.mpc.append(new_mpc)
         return new_mpc
+    
+    @cached_property
+    def mpc_constraints(self) -> list[tuple[int, list[int], np.ndarray]]:
+        """Returns all MPC constraints in the system."""
+        return [constraint for mpc in self.mpc for constraint in mpc.constraints]
+
 
     @property
     def stiffness_matrix(self) -> np.ndarray:
@@ -106,20 +116,6 @@ class FEM:
             k_matrix[np.ix_(indices, indices)] += k_global
 
         return k_matrix
-    
-    @property
-    def mpc_constraints(self) -> list[tuple[int, list[int], np.ndarray]]:
-        """
-        Returns all MPC constraints in the system.
-        
-        Returns:
-            List of tuples containing (slave_dof, master_dofs, coefficients)
-        """
-
-        constraints = []
-        for mpc in self.mpc:
-            constraints.extend(mpc.constraints)
-        return constraints
 
     def apply_loads(self) -> np.ndarray:
         """
@@ -137,20 +133,6 @@ class FEM:
 
         return load_vector
 
-    def get_free_dofs(self) -> np.ndarray:
-        """
-        Returns array of free DOFs considering boundary conditions.
-        
-        Returns:
-            Array of free DOFs
-        """
-        free_dofs = np.arange(len(self.nodes) * 3)
-        fixed_indices = np.concatenate([
-            node.index * 3 + node.fixed_dof for node in self.nodes 
-            if node.fixed_dof.size > 0
-        ])
-        return np.setdiff1d(free_dofs, fixed_indices)
-
     def apply_mpc_constraints(self, k_global: np.ndarray, 
                             load_vector: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
@@ -163,6 +145,7 @@ class FEM:
         Returns:
             Tuple of free DOFs, modified stiffness matrix, and modified load vector
         """
+
         free_dofs = np.arange(len(self.nodes) * 3)
         for slave_dof, master_dofs, coeffs in self.mpc_constraints:
             free_dofs = free_dofs[free_dofs != slave_dof]
@@ -184,7 +167,7 @@ class FEM:
         load_vector = self.apply_loads()
         
         # Apply constraints
-        bc_free_dofs = self.get_free_dofs()
+        bc_free_dofs = np.concatenate([node.free_dof for node in self.nodes])
         mpc_free_dofs, k_global, load_vector = self.apply_mpc_constraints(k_global, load_vector)
         free_dofs = np.intersect1d(bc_free_dofs, mpc_free_dofs)
 

@@ -61,6 +61,11 @@ class Node:
     def dof_indices(self) -> np.ndarray:
         """Global DOF indices for this node (assuming 3 DOF per node)."""
         return np.array([self.index * 3, self.index * 3 + 1, self.index * 3 + 2], dtype=int)
+    
+    @cached_property
+    def free_dof(self) -> np.ndarray:
+        """Array of free degrees of freedom (not fixed)."""
+        return np.array([self.index * 3 + i for i in range(3) if i not in self.fixed_dof], dtype=int)
 
     def __repr__(self) -> str:
         """String representation of the node."""
