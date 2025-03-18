@@ -1,0 +1,9 @@
+[project]
+name = "splice"
+version = "0.0.1"
+description = "Default template for PDM package"
+authors = [{ name = "nikita.avdeev", email = "nikita.avdeev@gulfstream.com" }]
+dependencies = ["numpy>=2.2.3", "ruff>=0.9.10"]
+requires-python = "==3.13.*"
+readme = "README.md"
+license = { text = "MIT" }
