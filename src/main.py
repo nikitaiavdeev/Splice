@@ -219,15 +219,15 @@ cbush_rotational_stiffness_plate_2 = t2**3 / 12 / cbush_plate_2_coeff
 
 nodes = [
     # Plate 1
-    fem.add_node(x=0, y=0, fixed_dof=np.array([0, 1, 2])), # 0
-    fem.add_node(x=1, y=0), # 1
-    fem.add_node(x=1, y=0), # 2
+    fem.add_node(x=0, y=0, fixed_dof=np.array([0, 1, 2])),  # 0
+    fem.add_node(x=1, y=0),  # 1
+    fem.add_node(x=1, y=0),  # 2
     # Plate 2
-    fem.add_node(x=1, y=0.15, fixed_dof=np.array([1])), # 3
-    fem.add_node(x=1, y=0.15, load_dof=np.array([1000, 0, 0])), # 4
+    fem.add_node(x=1, y=0.15, fixed_dof=np.array([1])),  # 3
+    fem.add_node(x=1, y=0.15, load_dof=np.array([1000, 0, 0])),  # 4
     # Plate 3
-    fem.add_node(x=1, y=-0.15), # 5
-    fem.add_node(x=1, y=-0.15, load_dof=np.array([1000, 0, 0])), # 6
+    fem.add_node(x=1, y=-0.15),  # 5
+    fem.add_node(x=1, y=-0.15, load_dof=np.array([1000, 0, 0])),  # 6
 ]
 
 # # Plate 1

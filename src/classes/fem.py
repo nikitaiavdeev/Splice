@@ -187,7 +187,7 @@ class FEM:
                 coeffs[:, np.newaxis] * k_global[:, slave_dof]
             ).T
             load_vector[master_dofs] += coeffs * load_vector[slave_dof]
-            
+
         return free_dofs, k_global, load_vector
 
     def solve(self) -> np.ndarray:
