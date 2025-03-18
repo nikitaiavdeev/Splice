@@ -1,11 +1,13 @@
-import numpy as np
-from classes.nodes import Node
 from functools import cached_property
+
+import numpy as np
+
+from classes.nodes import Node
 
 
 class Beam:
     """A 2D beam element for structural analysis with stiffness matrix computation."""
-    
+
     def __init__(
         self,
         area: float,
@@ -16,7 +18,7 @@ class Beam:
     ) -> None:
         """
         Initialize a beam element with geometric and material properties.
-        
+
         Args:
             area: Cross-sectional area of the beam (in²).
             inertia: Moment of inertia of the beam (in⁴).
@@ -37,7 +39,7 @@ class Beam:
         # Validate input values
         if not all(x > 0 for x in (area, inertia, elastic_modulus)):
             raise ValueError("Area, inertia, and elastic modulus must be positive.")
-        
+
         self.area = float(area)
         self.inertia = float(inertia)
         self.elastic_modulus = float(elastic_modulus)
@@ -74,8 +76,7 @@ class Beam:
     @cached_property
     def local_stiffness_matrix(self) -> np.ndarray:
         """Local stiffness matrix for the beam in its local coordinate system."""
-        l = self.length
-        one_over_l = 1.0 / l
+        one_over_l = 1.0 / self.length
         eal = self.elastic_modulus * self.area * one_over_l
         eil = self.elastic_modulus * self.inertia * one_over_l
         eil2 = eil * one_over_l
@@ -110,7 +111,6 @@ class Beam:
 
         k_local = self.local_stiffness_matrix
         return t_matrix.T @ k_local @ t_matrix
-    
+
     def __repr__(self) -> str:
         return f"Beam({self.node_1.index}, {self.node_2.index}, A={self.area}, I={self.inertia}, E={self.elastic_modulus})"
-    

@@ -1,7 +1,8 @@
-import numpy as np
-from classes.nodes import Node
 from functools import cached_property
 
+import numpy as np
+
+from classes.nodes import Node
 
 
 class CBush:
@@ -30,11 +31,11 @@ class CBush:
         # Validate node connection
         if node_1 == node_2:
             raise ValueError("CBush cannot connect a node to itself")
-        
+
         # Validate stiffness values
         if axial_stiffness < 0 or rotational_stiffness < 0:
             raise ValueError("Stiffness values must be non-negative.")
-        
+
         self.axial_stiffness = float(axial_stiffness)
         self.rotational_stiffness = float(rotational_stiffness)
         self.node_1 = node_1
@@ -48,14 +49,14 @@ class CBush:
 
         return np.array(
             [
-                [ka,  0,  0, -ka,  0,  0],
-                [ 0,  0,  0,  0,  0,  0],
-                [ 0,  0, kr,  0,  0, -kr],
-                [-ka, 0,  0,  ka,  0,  0],
-                [ 0,  0,  0,  0,  0,  0],
-                [ 0,  0, -kr, 0,  0,  kr],
+                [ka, 0, 0, -ka, 0, 0],
+                [0, 0, 0, 0, 0, 0],
+                [0, 0, kr, 0, 0, -kr],
+                [-ka, 0, 0, ka, 0, 0],
+                [0, 0, 0, 0, 0, 0],
+                [0, 0, -kr, 0, 0, kr],
             ],
-            dtype=np.float64
+            dtype=np.float64,
         )
 
     def __repr__(self):
