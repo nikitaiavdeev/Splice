@@ -1,9 +1,26 @@
 [project]
 name = "splice"
 version = "0.0.1"
-description = "Default template for PDM package"
-authors = [{ name = "nikita.avdeev", email = "nikita.avdeev@gulfstream.com" }]
-dependencies = ["numpy>=2.2.3", "ruff>=0.9.10"]
-requires-python = "==3.13.*"
+description = "A Python package for data processing and analysis"
+authors = [{ name = "Nikita Avdeev", email = "nikita.avdeev@gulfstream.com" }]
+dependencies = ["numpy>=2.2.3"]
+requires-python = ">=3.9"
 readme = "README.md"
-license = { text = "MIT" }
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",  # For testing
+    "ruff>=0.9.10", # For code formating
+]
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.ruff]
+line-length = 88
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q"
+testpaths = ["tests"]

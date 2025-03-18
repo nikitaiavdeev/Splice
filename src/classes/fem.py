@@ -34,13 +34,7 @@ class FEM:
         """
 
         fixed_dof = np.array([]) if fixed_dof is None else np.asarray(fixed_dof, dtype=int)
-        load_dof = np.zeros(3) if load_dof is None else np.asarray(load_dof)
-
-        if load_dof.size != 3:
-            raise ValueError("load_dof must have exactly 3 components [Fx, Fy, M]")
-        if not np.all(np.isin(fixed_dof, [0, 1, 2])):
-            raise ValueError("fixed_dof must contain only 0, 1, or 2")
-        
+        load_dof = np.zeros(3) if load_dof is None else np.asarray(load_dof)        
         new_node = Node(index=len(self.nodes), x=x, y=y, fixed_dof=fixed_dof, load_dof=load_dof)
         self.nodes.append(new_node)
         return new_node
@@ -59,12 +53,6 @@ class FEM:
         Returns:
             Created Beam object
         """
-
-        if node_1 == node_2:
-            raise ValueError("Beam cannot connect a node to itself")
-        if area <= 0 or inertia <= 0 or elastic_modulus <= 0:
-            raise ValueError("Area, inertia, and elastic modulus must be positive")
-    
         new_beam = Beam(area=area, inertia=inertia, elastic_modulus=elastic_modulus, node_1=node_1, node_2=node_2)
         self.beams.append(new_beam)
         return new_beam
@@ -82,12 +70,6 @@ class FEM:
         Returns:
             Created CBush object
         """
-
-        if node_1 == node_2:
-            raise ValueError("CBush cannot connect a node to itself")
-        if axial_stiffness <= 0 or rotational_stiffness <= 0:
-            raise ValueError("Axial and rotational stiffness must be positive")
-
         new_cbush = CBush(axial_stiffness=axial_stiffness, rotational_stiffness=rotational_stiffness, node_1=node_1, node_2=node_2)
         self.cbush.append(new_cbush)
         return new_cbush
@@ -104,12 +86,6 @@ class FEM:
         Returns:
             Created MPC object
         """
-
-        if master_node == slave_node:
-            raise ValueError("MPC cannot connect a node to itself")
-        if not np.all(np.isin(dofs, [0, 1, 2])):
-            raise ValueError("MPC dofs must contain only 0, 1, or 2")
-        
         new_mpc = MPC(master_node=master_node, slave_node=slave_node, dofs=dofs)
         self.mpc.append(new_mpc)
         return new_mpc

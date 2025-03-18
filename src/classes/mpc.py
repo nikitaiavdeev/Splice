@@ -1,17 +1,37 @@
 import numpy as np
 from classes.nodes import Node
+from functools import cached_property
 
 class MPC(object):
-    master_node: Node
-    slave_node: Node
-    dofs: np.ndarray
+    """A Multi-Point Constraint (MPC) enforcing kinematic relationships between nodes."""
 
     def __init__(self, master_node: Node, slave_node: Node, dofs: np.ndarray):
+        """
+        Initialize an MPC relationship between a master and slave node.
+
+        Args:
+            master_node: Node controlling the slave node's motion.
+            slave_node: Node whose DOFs are constrained by the master.
+            dofs: Array of DOF indices (0: u_x, 1: u_y, 2: θ_z) to constrain.
+
+        Raises:
+            ValueError: If master and slave nodes are the same, or dofs are invalid.
+        """
+
+        if master_node.index == slave_node.index:
+            raise ValueError("Master and slave nodes must be distinct.")
+        
+        dofs = np.asarray(dofs, dtype=int)
+        if not np.all((dofs >= 0) & (dofs < 3)):
+            raise ValueError("DOF indices must be 0 (u_x), 1 (u_y), or 2 (θ_z).")
+        if dofs.size == 0:
+            raise ValueError("At least one DOF must be specified for constraint.")
+        
         self.master_node = master_node
         self.slave_node = slave_node
         self.dofs = dofs
 
-    @property
+    @cached_property
     def constraints(self)->list[tuple[int, list[int], np.ndarray]]:
         """
         Returns the constraint matrix for the MPC relationship between master and slave nodes.
@@ -26,7 +46,6 @@ class MPC(object):
             where each tuple represents one constraint equation.
         """
 
-        
         # Pre-calculate indices and coordinates
         master_idx = self.master_node.index * 3
         slave_idx = self.slave_node.index * 3
@@ -47,3 +66,6 @@ class MPC(object):
 
         # Generate constraints efficiently
         return [(slave_idx + dof, master_dofs, coeff_map[dof]) for dof in self.dofs]
+    
+    def __repr__(self) -> str:
+        return f"MPC(master={self.master_node.index}, slave={self.slave_node.index}, dofs={self.dofs.tolist()})"
