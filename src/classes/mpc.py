@@ -35,6 +35,13 @@ class MPC(object):
         self.dofs = dofs
 
     @cached_property
+    def length(self) -> float:
+        """Length of the beam."""
+        length = np.linalg.norm(self.slave_node.coord - self.master_node.coord)
+
+        return float(length)
+
+    @cached_property
     def constraints(self) -> list[tuple[int, list[int], np.ndarray]]:
         """
         Returns the constraint matrix for the MPC relationship between master and slave nodes.

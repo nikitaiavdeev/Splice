@@ -277,8 +277,8 @@ fem.add_cbush(
     node_2=nodes[6],
 )
 
-fem.add_mpc(master_node=nodes[6], slave_node=nodes[1], dofs=np.array([1, 2]))
-fem.add_mpc(master_node=nodes[1], slave_node=nodes[4], dofs=np.array([1, 2]))
+fem.add_mpc(master_node=nodes[1], slave_node=nodes[6], dofs=np.array([ 1, 2]))
+fem.add_mpc(master_node=nodes[1], slave_node=nodes[4], dofs=np.array([ 1, 2]))
 
 displacement = fem.solve()
 
