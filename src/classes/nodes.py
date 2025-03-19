@@ -55,6 +55,8 @@ class Node:
         self.fixed_dof: np.ndarray = fixed_dof
         self.load_dof: np.ndarray = load_dof
 
+        self._displ: np.ndarray | None = None
+
     @cached_property
     def x(self) -> float:
         """X-coordinate of the node."""
@@ -78,6 +80,17 @@ class Node:
         return np.array(
             [self.index * 3 + i for i in range(3) if i not in self.fixed_dof], dtype=int
         )
+
+    @property
+    def displ(self) -> np.ndarray:
+        if self._displ is None:
+            raise ValueError("Trying to get node displacement before model been solved")
+
+        return self._displ
+
+    @displ.setter
+    def displ(self, value: np.ndarray):
+        self._displ = value
 
     def __repr__(self) -> str:
         """String representation of the node."""

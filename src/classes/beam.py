@@ -112,5 +112,11 @@ class Beam:
         k_local = self.local_stiffness_matrix
         return t_matrix.T @ k_local @ t_matrix
 
+    @property
+    def internal_forces(self) -> np.ndarray:
+        displacement_vector = np.concatenate((self.node_1.displ, self.node_2.displ))
+
+        return self.global_stiffness_matrix @ displacement_vector
+
     def __repr__(self) -> str:
         return f"Beam({self.node_1.index}, {self.node_2.index}, A={self.area}, I={self.inertia}, E={self.elastic_modulus})"

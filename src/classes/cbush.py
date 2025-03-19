@@ -59,5 +59,11 @@ class CBush:
             dtype=np.float64,
         )
 
+    @property
+    def internal_forces(self) -> np.ndarray:
+        displacement_vector = np.concatenate((self.node_1.displ, self.node_2.displ))
+
+        return self.global_stiffness_matrix @ displacement_vector
+
     def __repr__(self):
         return f"Cbush({self.node_1.index}, {self.node_2.index}, k={self.axial_stiffness}, kr={self.rotational_stiffness})"

@@ -227,6 +227,10 @@ class FEM:
         for slave_dof, master_dofs, coeffs in self.mpc_constraints:
             displacements[slave_dof] = np.dot(coeffs, displacements[master_dofs])
 
+        # Set nodes displacements
+        for node in self.nodes:
+            node.displ = displacements[node.dof_indices]
+
         return displacements
 
 
