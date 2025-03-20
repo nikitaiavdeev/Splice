@@ -1,6 +1,7 @@
 from functools import cached_property
 
 import numpy as np
+from numpy.typing import NDArray
 
 from classes.nodes import Node
 
@@ -42,8 +43,14 @@ class CBush:
         self.node_2 = node_2
 
     @cached_property
-    def global_stiffness_matrix(self) -> np.ndarray:
-        """Computes the global stiffness matrix for the CBush element."""
+    def global_stiffness_matrix(self) -> NDArray[np.float64]:
+        """
+        Global stiffness matrix transformed to global coordinates.
+
+        Returns:
+            6x6 stiffness matrix in global coordinate system
+        """
+
         ka = self.axial_stiffness
         kr = self.rotational_stiffness
 
@@ -60,10 +67,19 @@ class CBush:
         )
 
     @property
-    def internal_forces(self) -> np.ndarray:
-        displacement_vector = np.concatenate((self.node_1.displ, self.node_2.displ))
+    def internal_forces(self) -> NDArray[np.float64]:
+        """
+        Calculate internal forces based on current displacements.
 
-        return self.global_stiffness_matrix @ displacement_vector
+        Returns:
+            Array of forces [Fx1, Fy1, M1, Fx2, Fy2, M2] in global coordinates
+        """
+        displacements = np.concatenate((self.node_1.displ, self.node_2.displ))
+        return self.global_stiffness_matrix @ displacements
 
-    def __repr__(self):
-        return f"Cbush({self.node_1.index}, {self.node_2.index}, k={self.axial_stiffness}, kr={self.rotational_stiffness})"
+    def __repr__(self) -> str:
+        """String representation of the CBush element."""
+        return (
+            f"CBush(node_1={self.node_1.index}, node_2={self.node_2.index}, "
+            f"ka={self.axial_stiffness:.3g}, kr={self.rotational_stiffness:.3g})"
+        )

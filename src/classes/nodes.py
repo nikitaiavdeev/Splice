@@ -1,6 +1,7 @@
 from functools import cached_property
 
 import numpy as np
+from numpy.typing import NDArray
 
 
 class Node:
@@ -11,8 +12,8 @@ class Node:
         index: int,
         x: float,
         y: float,
-        fixed_dof: np.ndarray | None = None,
-        load_dof: np.ndarray | None = None,
+        fixed_dof: NDArray[np.int_] | None = None,
+        load_dof: NDArray[np.float64] | None = None,
     ):
         """
         Initialize a node with position, boundary conditions, and applied loads.
@@ -51,45 +52,46 @@ class Node:
             raise ValueError("load_dof must be a 3-element array [F_x, F_y, M_z].")
 
         self.index: int = index
-        self.coord: np.ndarray = np.array([x, y], dtype=np.float64)
-        self.fixed_dof: np.ndarray = fixed_dof
-        self.load_dof: np.ndarray = load_dof
+        self.coord: NDArray[np.float64] = np.array([x, y], dtype=np.float64)
+        self.fixed_dof: NDArray[np.int_] = fixed_dof
+        self.load_dof: NDArray[np.float64] = load_dof
 
-        self._displ: np.ndarray | None = None
+        self._displ: NDArray[np.float64] | None = None
 
     @cached_property
-    def x(self) -> float:
+    def x(self) -> np.float64:
         """X-coordinate of the node."""
         return self.coord[0]
 
     @cached_property
-    def y(self) -> float:
+    def y(self) -> np.float64:
         """Y-coordinate of the node."""
         return self.coord[1]
 
     @cached_property
-    def dof_indices(self) -> np.ndarray:
+    def dof_indices(self) -> NDArray[np.int_]:
         """Global DOF indices for this node (assuming 3 DOF per node)."""
         return np.array(
             [self.index * 3, self.index * 3 + 1, self.index * 3 + 2], dtype=int
         )
 
     @cached_property
-    def free_dof(self) -> np.ndarray:
+    def free_dof(self) -> NDArray[np.int_]:
         """Array of free degrees of freedom (not fixed)."""
         return np.array(
             [self.index * 3 + i for i in range(3) if i not in self.fixed_dof], dtype=int
         )
 
     @property
-    def displ(self) -> np.ndarray:
+    def displ(self) -> NDArray[np.float64]:
+        """Node displacements [u_x, u_y, θ_z]."""
         if self._displ is None:
-            raise ValueError("Trying to get node displacement before model been solved")
-
+            raise ValueError("Displacements not set - solve the model first")
         return self._displ
 
     @displ.setter
-    def displ(self, value: np.ndarray):
+    def displ(self, value: NDArray[np.float64]) -> None:
+        """Set node displacements."""
         self._displ = value
 
     def __repr__(self) -> str:

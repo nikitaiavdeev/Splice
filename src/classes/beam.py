@@ -1,6 +1,7 @@
 from functools import cached_property
 
 import numpy as np
+from numpy.typing import NDArray
 
 from classes.nodes import Node
 
@@ -51,7 +52,7 @@ class Beam:
             raise ValueError("Beam length cannot be zero (nodes coincide).")
 
     @cached_property
-    def delta_coord(self) -> np.ndarray:
+    def delta_coord(self) -> NDArray[np.float64]:
         """Displacement vector between the two nodes."""
         return self.node_2.coord - self.node_1.coord
 
@@ -74,8 +75,15 @@ class Beam:
         return float(np.cos(angle)), float(np.sin(angle))
 
     @cached_property
-    def local_stiffness_matrix(self) -> np.ndarray:
-        """Local stiffness matrix for the beam in its local coordinate system."""
+    def local_stiffness_matrix(self) -> NDArray[np.float64]:
+        """
+        Local stiffness matrix in the beam's coordinate system.
+
+        Returns:
+            6x6 stiffness matrix for axial, flexural, and rotational DOFs
+        """
+
+        # Precompute common terms
         one_over_l = 1.0 / self.length
         eal = self.elastic_modulus * self.area * one_over_l
         eil = self.elastic_modulus * self.inertia * one_over_l
@@ -90,33 +98,53 @@ class Beam:
                 [-eal, 0.0, 0.0, eal, 0.0, 0.0],
                 [0.0, -12.0 * eil3, -6.0 * eil2, 0.0, 12.0 * eil3, -6.0 * eil2],
                 [0.0, 6.0 * eil2, 2.0 * eil, 0.0, -6.0 * eil2, 4.0 * eil],
-            ]
+            ],
+            dtype=np.float64,
         )
 
     @cached_property
-    def global_stiffness_matrix(self) -> np.ndarray:
-        """Global stiffness matrix transformed to the global coordinate system."""
-        cos, sin = self.cos_sin
-        t_matrix = np.array(
+    def transformation_matrix(self) -> NDArray[np.float64]:
+        """Transformation matrix from local to global coordinates."""
+        c, s = self.cos_sin
+        return np.array(
             [
-                [cos, sin, 0.0, 0.0, 0.0, 0.0],
-                [-sin, cos, 0.0, 0.0, 0.0, 0.0],
+                [c, s, 0.0, 0.0, 0.0, 0.0],
+                [-s, c, 0.0, 0.0, 0.0, 0.0],
                 [0.0, 0.0, 1.0, 0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0, cos, sin, 0.0],
-                [0.0, 0.0, 0.0, -sin, cos, 0.0],
+                [0.0, 0.0, 0.0, c, s, 0.0],
+                [0.0, 0.0, 0.0, -s, c, 0.0],
                 [0.0, 0.0, 0.0, 0.0, 0.0, 1.0],
             ],
             dtype=np.float64,
         )
 
+    @cached_property
+    def global_stiffness_matrix(self) -> NDArray[np.float64]:
+        """
+        Global stiffness matrix in the global coordinate system.
+
+        Returns:
+            6x6 stiffness matrix transformed to global coordinates
+        """
+        T = self.transformation_matrix
         k_local = self.local_stiffness_matrix
-        return t_matrix.T @ k_local @ t_matrix
+        return T.T @ (k_local @ T)
 
     @property
-    def internal_forces(self) -> np.ndarray:
-        displacement_vector = np.concatenate((self.node_1.displ, self.node_2.displ))
+    def internal_forces(self) -> NDArray[np.float64]:
+        """
+        Calculate internal forces based on current displacements.
 
-        return self.global_stiffness_matrix @ displacement_vector
+        Returns:
+            Array of forces [Fx1, Fy1, M1, Fx2, Fy2, M2] in global coordinates
+        """
+        displacements = np.concatenate((self.node_1.displ, self.node_2.displ))
+        return self.global_stiffness_matrix @ displacements
 
     def __repr__(self) -> str:
-        return f"Beam({self.node_1.index}, {self.node_2.index}, A={self.area}, I={self.inertia}, E={self.elastic_modulus})"
+        """String representation of the beam."""
+
+        return (
+            f"Beam(node_1={self.node_1.index}, node_2={self.node_2.index}, "
+            f"A={self.area:.3g}, I={self.inertia:.3g}, E={self.elastic_modulus:.3g})"
+        )

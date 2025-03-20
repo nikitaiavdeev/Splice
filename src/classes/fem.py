@@ -1,7 +1,8 @@
 from functools import cached_property
-from typing import Optional
+from typing import List, Optional, Tuple
 
 import numpy as np
+from numpy.typing import NDArray
 
 from classes.beam import Beam
 from classes.cbush import CBush
@@ -10,18 +11,20 @@ from classes.nodes import Node
 
 
 class FEM:
-    def __init__(self):
-        self.nodes: list[Node] = []
-        self.beams: list[Beam] = []
-        self.cbush: list[CBush] = []
-        self.mpc: list[MPC] = []
+    """Finite Element Method solver for 2D structural analysis."""
+
+    def __init__(self) -> None:
+        self.nodes: List[Node] = []
+        self.beams: List[Beam] = []
+        self.cbush: List[CBush] = []
+        self.mpc: List[MPC] = []
 
     def add_node(
         self,
         x: float,
         y: float,
-        fixed_dof: Optional[np.ndarray] = None,
-        load_dof: Optional[np.ndarray] = None,
+        fixed_dof: Optional[NDArray[np.int_]] = None,
+        load_dof: Optional[NDArray[np.float64]] = None,
     ) -> Node:
         """
         Creates and adds a node to the FEM system.
@@ -35,11 +38,15 @@ class FEM:
         Returns:
             Created Node object
         """
-
         fixed_dof = (
-            np.array([]) if fixed_dof is None else np.asarray(fixed_dof, dtype=int)
+            np.array([], dtype=int)
+            if fixed_dof is None
+            else np.asarray(fixed_dof, dtype=int)
         )
-        load_dof = np.zeros(3) if load_dof is None else np.asarray(load_dof)
+        load_dof = (
+            np.zeros(3) if load_dof is None else np.asarray(load_dof, dtype=float)
+        )
+
         new_node = Node(
             index=len(self.nodes), x=x, y=y, fixed_dof=fixed_dof, load_dof=load_dof
         )
@@ -107,7 +114,9 @@ class FEM:
         self.cbush.append(new_cbush)
         return new_cbush
 
-    def add_mpc(self, master_node: Node, slave_node: Node, dofs: np.ndarray) -> MPC:
+    def add_mpc(
+        self, master_node: Node, slave_node: Node, dofs: NDArray[np.int_]
+    ) -> MPC:
         """
         Creates and adds an MPC constraint between two nodes.
 
@@ -124,61 +133,44 @@ class FEM:
         self.mpc.append(new_mpc)
         return new_mpc
 
+    @cached_property
+    def dof_count(self) -> int:
+        """Total number of degrees of freedom in the system."""
+        return len(self.nodes) * 3
+
     @property
-    def stiffness_matrix(self) -> np.ndarray:
+    def stiffness_matrix(self) -> NDArray[np.float64]:
         """Assembles the global stiffness matrix."""
-        dof_count = len(self.nodes) * 3
-        k_matrix = np.zeros((dof_count, dof_count))
+        k_matrix = np.zeros((self.dof_count, self.dof_count))
 
-        # Assemble stiffness matrices for beams and CBush elements
         for element in self.beams + self.cbush:
-            n1_idx, n2_idx = element.node_1.index * 3, element.node_2.index * 3
             k_global = element.global_stiffness_matrix
-
-            # Vectorized assembly
-            indices = np.array(
-                [n1_idx, n1_idx + 1, n1_idx + 2, n2_idx, n2_idx + 1, n2_idx + 2]
+            indices = np.concatenate(
+                (element.node_1.dof_indices, element.node_2.dof_indices)
             )
             k_matrix[np.ix_(indices, indices)] += k_global
 
         return k_matrix
 
-    def apply_loads(self) -> np.ndarray:
-        """
-        Applies nodal loads to the global load vector.
-
-        Returns:
-            Global load vector
-        """
-        dof_count = len(self.nodes) * 3
-        load_vector = np.zeros(dof_count)
+    def apply_loads(self) -> NDArray[np.float64]:
+        """Assembles the global load vector."""
+        load_vector = np.zeros(self.dof_count)
 
         for node in self.nodes:
-            node_idx = node.index * 3
-            load_vector[node_idx : node_idx + 3] = node.load_dof
+            load_vector[node.dof_indices] = node.load_dof
 
         return load_vector
 
     @cached_property
-    def mpc_constraints(self) -> list[tuple[int, list[int], np.ndarray]]:
+    def mpc_constraints(self) -> List[Tuple[int, List[int], NDArray[np.float64]]]:
         """Returns all MPC constraints in the system."""
         return [constraint for mpc in self.mpc for constraint in mpc.constraints]
 
     def apply_mpc_constraints(
-        self, k_global: np.ndarray, load_vector: np.ndarray
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """
-        Modifies stiffness matrix and load vector for MPC constraints.
-
-        Args:
-            k_global: Global stiffness matrix
-            load_vector: Global load vector
-
-        Returns:
-            Tuple of free DOFs, modified stiffness matrix, and modified load vector
-        """
-
-        free_dofs = np.arange(len(self.nodes) * 3)
+        self, k_global: NDArray[np.float64], load_vector: NDArray[np.float64]
+    ) -> Tuple[NDArray[np.int_], NDArray[np.float64], NDArray[np.float64]]:
+        """Modifies stiffness matrix and load vector for MPC constraints."""
+        free_dofs = np.arange(self.dof_count)
 
         for slave_dof, master_dofs, coeffs in self.mpc_constraints:
             free_dofs = free_dofs[free_dofs != slave_dof]
@@ -190,23 +182,31 @@ class FEM:
 
         return free_dofs, k_global, load_vector
 
-    def solve(self) -> np.ndarray:
+    def solve(self) -> NDArray[np.float64]:
         """
         Solves for nodal displacements considering all constraints.
 
         Returns:
             Array of displacements [u, v, θ] for each node
+
+        Raises:
+            ValueError: If the system has no nodes or is singular
         """
+        if not self.nodes:
+            raise ValueError("No nodes defined in the system")
 
         k_global = self.stiffness_matrix
         load_vector = self.apply_loads()
 
-        # Apply constraints
+        # Apply boundary conditions
         bc_free_dofs = np.concatenate([node.free_dof for node in self.nodes])
         mpc_free_dofs, k_global, load_vector = self.apply_mpc_constraints(
             k_global, load_vector
         )
         free_dofs = np.intersect1d(bc_free_dofs, mpc_free_dofs)
+
+        if free_dofs.size == 0:
+            raise ValueError("System is fully constrained")
 
         # Solve reduced system
         k_reduced = k_global[np.ix_(free_dofs, free_dofs)]
@@ -214,22 +214,20 @@ class FEM:
 
         try:
             disp_reduced = np.linalg.solve(k_reduced, load_reduced)
-        except np.linalg.LinAlgError:
-            raise ValueError(
-                "System is singular or ill-conditioned"
-            ) from np.linalg.LinAlgError
+        except np.linalg.LinAlgError as e:
+            raise ValueError("System is singular or ill-conditioned") from e
 
         # Reconstruct full displacement vector
-        displacements = np.zeros(len(self.nodes) * 3)
+        displacements = np.zeros(self.dof_count)
         displacements[free_dofs] = disp_reduced
 
-        # Compute dependent DOFs
-        for slave_dof, master_dofs, coeffs in self.mpc_constraints:
-            displacements[slave_dof] = np.dot(coeffs, displacements[master_dofs])
-
-        # Set nodes displacements
+        # Update node displacements
         for node in self.nodes:
             node.displ = displacements[node.dof_indices]
+
+        # Compute dependent DOFs from MPC
+        for mpc in self.mpc:
+            mpc.calc_slave_displacements()
 
         return displacements
 
