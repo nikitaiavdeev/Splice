@@ -297,7 +297,8 @@ bolt3_mpc = [
     fem.add_mpc(master_node=nodes[20], slave_node=nodes[24], dofs=np.array([1, 2])),
 ]
 
-displacement = fem.solve()
+# displacement = fem.solve_linear()
+displacement = fem.solve_nonlinear(50, 1e-6)
 
 for node in nodes:
     print(f"Node {node.index} displacement: {node.displ}")

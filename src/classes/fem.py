@@ -3,6 +3,7 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 from numpy.typing import NDArray
+from scipy.sparse.linalg  import spsolve
 
 from classes.beam import Beam
 from classes.cbush import CBush
@@ -152,6 +153,16 @@ class FEM:
 
         return k_matrix
 
+    @property
+    def internal_force_vector(self) -> NDArray[np.float64]:
+        """Assemble internal force vector."""
+        f_int = np.zeros(self.dof_count)
+        for beam in self.beams:
+            f_element = beam.internal_forces
+            indices = np.concatenate((beam.node_1.dof_indices, beam.node_2.dof_indices))
+            f_int[indices] += f_element
+        return f_int
+
     def apply_loads(self) -> NDArray[np.float64]:
         """Assembles the global load vector."""
         load_vector = np.zeros(self.dof_count)
@@ -182,7 +193,7 @@ class FEM:
 
         return free_dofs, k_global, load_vector
 
-    def solve(self) -> NDArray[np.float64]:
+    def solve_linear(self) -> NDArray[np.float64]:
         """
         Solves for nodal displacements considering all constraints.
 
@@ -231,6 +242,70 @@ class FEM:
 
         return displacements
 
+
+    def solve_nonlinear(self, max_iterations: int, analysis_tolerance: float) -> NDArray[np.float64]:
+        """
+        Non-linear solver using Newton-Raphson method.
+        
+        Returns:
+            Array of displacements [u, v, θ] for each node
+
+        Raises:
+            ValueError: If the system has no nodes or is singular
+        """
+        if not self.nodes:
+            raise ValueError("No nodes defined in the system")
+
+        # Initial setup
+        displacements = self.solve_linear()
+        external_loads = self.apply_loads()
+
+        # Apply boundary conditions
+        k_tangent = self.stiffness_matrix
+        bc_free_dofs = np.concatenate([node.free_dof for node in self.nodes])
+        mpc_free_dofs, k_tangent, external_loads = self.apply_mpc_constraints(
+            k_tangent, external_loads
+        )
+        free_dofs = np.intersect1d(bc_free_dofs, mpc_free_dofs)
+
+        for iteration in range(max_iterations):
+            # Assemble system
+            k_tangent = self.stiffness_matrix
+            f_int = self.internal_force_vector
+
+            # Apply boundary conditions
+            k_red = k_tangent[np.ix_(free_dofs, free_dofs)]
+            residual = external_loads.copy()
+            residual[free_dofs] -= f_int[free_dofs]
+            
+            # Check convergence
+            if np.linalg.norm(residual) < analysis_tolerance:
+                break
+
+            # Apply MPC
+            mpc_free_dofs, k_tangent, residual = self.apply_mpc_constraints(
+                k_tangent, residual
+            )
+                
+            # Solve for displacement increment
+            delta_disp = np.linalg.solve(k_red, residual[free_dofs])
+            
+            # Update displacements
+            displacements[free_dofs] += delta_disp
+            
+            # Update node displacements
+            for node in self.nodes:
+                node.displ = displacements[node.dof_indices]
+
+            # Compute dependent DOFs from MPC
+            for mpc in self.mpc:
+                mpc.calc_slave_displacements()
+
+        # Final update
+        for node in self.nodes:
+            node.displ = displacements[node.dof_indices]
+
+        return displacements
 
 # Example usage
 fem = FEM()

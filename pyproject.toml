@@ -3,7 +3,7 @@ name = "splice"
 version = "0.0.1"
 description = "A Python package for data processing and analysis"
 authors = [{ name = "Nikita Avdeev", email = "nikita.avdeev@gulfstream.com" }]
-dependencies = ["numpy>=2.2.3"]
+dependencies = ["numpy", "scipy"]
 requires-python = ">=3.10"
 readme = "README.md"
 
