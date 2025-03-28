@@ -12,3 +12,4 @@ requirements.txt
 pdm.lock
 venv/
 .venv/
+.vscode/

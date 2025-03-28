@@ -209,7 +209,7 @@ fem.add_mpc(master_node=nodes[4], slave_node=nodes[1], dofs=np.array([1, 2]))
 fem.add_mpc(master_node=nodes[4], slave_node=nodes[2], dofs=np.array([1, 2]))
 fem.add_mpc(master_node=nodes[4], slave_node=nodes[7], dofs=np.array([1, 2]))
 
-displacement = fem.solve()
+displacement = fem.solve_linear()
 
 for node in nodes:
     print(f"Node {node.index} displacement: {node.displ}")
