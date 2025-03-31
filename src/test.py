@@ -39,7 +39,7 @@ for beam in plate1_beam:
     print(f"Beam forces {beam.internal_forces}")
 
 
-displacement = fem.solve_nonlinear(50, 1e-6)
+displacement = fem.solve_nonlinear(500, 1e-4, True)
 
 for node in nodes:
     print(f"Node {node.index} displacement: {node.displ}")

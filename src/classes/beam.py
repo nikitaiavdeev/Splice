@@ -73,10 +73,14 @@ class Beam:
         """Length of the beam."""
         length = np.linalg.norm(self.delta_coord)
 
+        if length == 0:
+            raise ValueError("Beam length is zero after deformation.")
+
         return float(length)
 
     def calc_transformation_matrix(self) -> NDArray[np.float64]:
         """Transformation matrix from local to global coordinates."""
+
         c, s = self.delta_coord / self.length
         return np.array(
             [
@@ -118,21 +122,17 @@ class Beam:
         )
 
     def calc_geometric_stiffness_matrix(self) -> NDArray[np.float64]:
-        """
-        Compute geometric stiffeness matrix
-
-        Returns:
-            6x6 geometric stiffeness matrix
-        """
+        """Compute geometric stiffness matrix accounting for axial force."""
 
         try:
             length = self.length
-            axial_force = (
+            axial_force = -(
                 self.area
                 * self.elastic_modulus
                 * (self.node_2.displ[0] - self.node_1.displ[0])
                 / length
             )
+
             return (
                 axial_force
                 / length
@@ -182,8 +182,9 @@ class Beam:
         Returns:
             Array of forces [Fx1, Fy1, M1, Fx2, Fy2, M2] in global coordinates
         """
-        displacements = np.concatenate((self.node_1.displ, self.node_2.displ))
-        self.internal_forces = self.global_stiffness_matrix @ displacements
+        T = self.transformation_matrix
+        displacements_local = T @ np.concatenate((self.node_1.displ, self.node_2.displ))
+        self.internal_forces = self.global_stiffness_matrix @ displacements_local
 
     def __repr__(self) -> str:
         """String representation of the beam."""

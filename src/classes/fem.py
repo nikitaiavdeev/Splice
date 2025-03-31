@@ -245,35 +245,44 @@ class FEM:
         return displacements
 
     def solve_nonlinear(
-        self, max_iterations: int, analysis_tolerance: float
+        self,
+        max_iterations: int = 100,
+        analysis_tolerance: float = 1e-6,
+        debug: bool = False,
     ) -> NDArray[np.float64]:
         """
         Non-linear solver using Newton-Raphson method.
 
+        Args:
+            max_iterations: Maximum number of iterations.
+            analysis_tolerance: Convergence threshold for residual norm.
+            debug: If True, prints intermediate results for debugging.
+
         Returns:
-            Array of displacements [u, v, θ] for each node
+            Array of displacements [u, v, θ] for each node.
 
         Raises:
-            ValueError: If the system has no nodes or is singular
+            ValueError: If the system is singular or does not converge.
         """
+
         if not self.nodes:
-            raise ValueError("No nodes defined in the system")
+            raise ValueError("No nodes defined in the system.")
 
         external_loads = self.apply_loads()
 
-        # Initial step
+        # Step 1: Initial Linear Solution
         displacements = self.solve_linear()
 
         bc_free_dofs = np.concatenate([node.free_dof for node in self.nodes])
         free_dofs = bc_free_dofs
 
         for iteration in range(max_iterations):
-            # Update elements
+            # Step 2: Update elements (geometry and stiffness)
             for beam in self.beams:
                 beam.update_properties()
                 beam.calc_internal_forces()
 
-            # Assemble system
+            # Step 3: Assemble Tangent Stiffness Matrix & Internal Forces
             k_tangent = self.stiffness_matrix
             f_int = self.internal_force_vector
 
@@ -282,27 +291,44 @@ class FEM:
             residual = external_loads.copy()
             residual[free_dofs] -= f_int[free_dofs]
 
-            # Check convergence
-            print(iteration, np.linalg.norm(residual))
-            if np.linalg.norm(residual) < analysis_tolerance:
+            # Convergence Check
+            residual_norm = np.linalg.norm(residual)
+
+            if residual_norm < analysis_tolerance:
+                if debug:
+                    print(f"Converged in {iteration} iterations!")
                 break
 
-            # Solve for displacement increment
-            delta_disp = np.linalg.solve(k_red, residual[free_dofs])
+            # Step 4: Solve for displacement increment
+            try:
+                delta_disp = np.linalg.solve(k_red, residual[free_dofs])
+            except np.linalg.LinAlgError:
+                raise ValueError(
+                    f"System is singular at iteration {iteration}. Check constraints & stiffness matrix."
+                )
 
-            # Update displacements
-            displacements[free_dofs] += delta_disp
+            if debug:
+                print(f"Iteration {iteration}: Residual Norm = {residual_norm:.6e}")
+                print(
+                    f"np.linalg.norm(delta_disp/displacements[free_dofs]): {np.linalg.norm(delta_disp / displacements[free_dofs])}"
+                )
 
-            # Update node displacements
+            # Step 5: Update Displacements
+            displacements[free_dofs] += delta_disp / 2
+
+            # Step 6: Check for Divergence
+            if np.linalg.norm(delta_disp) < 1e-10:
+                raise ValueError(
+                    f"Displacement change is too small at iteration {iteration}. Possible rigid body motion."
+                )
+
+            # Step 7: Update Node Displacements
             for node in self.nodes:
                 node.displ = displacements[node.dof_indices]
-
-            for beam in self.beams:
-                beam.calc_internal_forces()
-
-        # Final update
-        for node in self.nodes:
-            node.displ = displacements[node.dof_indices]
+        else:
+            raise ValueError(
+                f"Nonlinear solver did not converge after {max_iterations} iterations."
+            )
 
         return displacements
 
